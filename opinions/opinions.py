@@ -5,9 +5,7 @@ from mesa.time import BaseScheduler
 
 """
 
-Create a model
-
-Model
+Draft for opinion dynamics model.
 
 """
 
