@@ -47,7 +47,9 @@ class GeographicSpace(Space):
         """ Take list of agents, return list of pairs of agents """
         # TODO: Eventual use information about location in opinion space to build pairs.
 
-        assert len(agents) % 2 == 0
+        if not len(agents) % 2 == 0:
+            raise Exception("Require even number of agents")
+
         half = int(len(agents) / 2)
         random.shuffle(agents)
 
@@ -75,12 +77,12 @@ class Scheduler(BaseScheduler):
         # Whats the best way to extract this function? get_attr is too slow, right?
 
         first, second = pair
-        new_a, new_b = GeographicSpace.interact(first.location,
+        diff_a, diff_b = GeographicSpace.interact(first.location,
                                                 second.location,
                                                 Activation())
 
-        first.update_location(new_a)
-        second.update_location(new_b)
+        first.update_location(diff_a)
+        second.update_location(diff_b)
 
         assert 0 <= first.location <= 1, f"First.location is {first.location}"
         assert 0 <= second.location <= 1, f"Second.location is {second.location}"
