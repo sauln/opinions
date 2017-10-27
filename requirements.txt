@@ -1,8 +1,14 @@
+bokeh==0.12.10
+Jinja2==2.9.6
+MarkupSafe==1.0
 Mesa==0.8.1
 numpy==1.13.3
 pandas==0.20.3
+py==1.4.34
+pytest==3.2.3
 python-dateutil==2.6.1
 pytz==2017.2
+PyYAML==3.12
 six==1.11.0
 tornado==4.5.2
 tqdm==4.19.4

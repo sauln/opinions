@@ -1,4 +1,10 @@
 import random
+from itertools import cycle
+import logging
+
+import numpy as np
+from bokeh.plotting import figure, output_file, show
+from bokeh.palettes import Spectral11
 
 from mesa import Agent, Model
 from mesa.time import BaseScheduler
@@ -8,6 +14,12 @@ from mesa.time import BaseScheduler
 Draft for opinion dynamics model.
 
 """
+
+logger = logging.Logger("opin")
+
+NUM_AGENTS = 50
+NUM_STEPS = 100
+MOMENTUM_GAIN = 0.5
 
 class Space():
     """ Base class for Opinion and Geography space. The dynamics of each are identical except activation function. """
@@ -67,22 +79,21 @@ class Scheduler(BaseScheduler):
                                                 second.location,
                                                 Activation())
 
-        first.location += new_a
-        second.location += new_b
+        first.update_location(new_a)
+        second.update_location(new_b)
 
         assert 0 <= first.location <= 1, f"First.location is {first.location}"
         assert 0 <= second.location <= 1, f"Second.location is {second.location}"
 
     def update_pair_opinions(self, pair):
-        activation = lambda x, y: (x + y) / 2
 
         first, second = pair
         new_a, new_b = OpinionSpace.interact(first.opinion,
                                              second.opinion,
                                              Activation())
 
-        first.opinion += new_a
-        second.opinion += new_b
+        first.update_opinion(new_a)
+        second.update_opinion(new_b)
 
         # Assert this never happens or clip at edges?
         assert 0 <= first.opinion <= 1, f"First.opinion is {first.opinion}"
@@ -102,9 +113,25 @@ class OpinionatedAgent(Agent):
     """ Each agent should have an embedding in opinion space and in geographic space """
 
     def __init__(self, unique_id, model):
+        self.opinion_history = np.zeros(NUM_STEPS)
         self.opinion = random.random()  # 1d space for now # TODO: make n-dimensional
         self.location = random.random() # 1d space for now
+        self.momentum = 0
+        self.steps = 0
         super().__init__(unique_id, model)
+
+    def update_opinion(self, diff):
+        # Store current history
+        self.opinion_history[self.steps] = self.opinion
+        self.steps += 1
+
+        # Update history
+        self.momentum = diff + MOMENTUM_GAIN * self.momentum
+        logger.debug(f"Agent: {self.unique_id}, opinion: {self.opinion}, newdiff: {diff}, diff: {self.momentum}")
+        self.opinion += self.momentum
+
+    def update_location(self, diff):
+        self.location += diff
 
     def __repr__(self):
         return f"<Agent(id={self.unique_id}, op={self.opinion}, loc={self.location})>"
@@ -115,7 +142,7 @@ class OpinionModel(Model):
         self.steps = 1
         self.schedule = Scheduler(self)
 
-        for i in range(10):
+        for i in range(NUM_AGENTS):
             ag = OpinionatedAgent(i, self)
             self.schedule.add(ag)
 
@@ -130,14 +157,32 @@ class OpinionModel(Model):
         return agents
 
 
+class Visualize():
+    @staticmethod
+    def line_plot(agents, filename="results/agents.html"):
+
+        output_file(filename)
+
+        p = figure(plot_width=800, plot_height=250)
+
+        for agent, color in zip(agents, cycle(Spectral11)):
+            p.line(x=np.arange(NUM_STEPS),
+                   y=agent.opinion_history,
+                   color=color)
+
+        show(p)
+
+
 if __name__ == "__main__":
     model = OpinionModel()
 
-    print("Initial State:")
-    print(model)
+    logger.debug("Initial State:")
+    logger.debug(model)
 
-    for i in range(100):
+    for i in range(NUM_STEPS):
         model.step()
 
-    print("Terminal State:")
-    print(model)
+    logger.debug("Terminal State:")
+    logger.debug(model)
+
+    Visualize.line_plot(model.schedule.agents)
