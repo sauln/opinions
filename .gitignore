@@ -1,2 +1,4 @@
 venv
 PyOpinionGame
+__pycache__
+.cache
