@@ -5,6 +5,7 @@ import logging
 import numpy as np
 from bokeh.plotting import figure, output_file, show
 from bokeh.palettes import Spectral11
+from bokeh.io import output_notebook
 
 from mesa import Agent, Model
 from mesa.time import BaseScheduler
@@ -18,8 +19,18 @@ Draft for opinion dynamics model.
 logger = logging.Logger("opin")
 
 NUM_AGENTS = 50
-NUM_STEPS = 100
-MOMENTUM_GAIN = 0.5
+NUM_STEPS = 105
+
+def make_adjacency_matrix():
+    # Make a random adjacency matrix
+    random_matrix = np.random.rand(NUM_AGENTS,NAGENTS)
+    symmetric_matrix = np.dot(random_matrix, random_matrix.T)
+    np.fill_diagonal(symmetric_matrix, 0)
+    normalized = pre.normalize(symmetric_matrix)
+
+    fuzzy_adjacency_matrix = normalized
+    return fuzzy_adjacency_matrix
+
 
 class Space():
     """ Base class for Opinion and Geography space. The dynamics of each are identical except activation function. """
@@ -42,6 +53,23 @@ class OpinionSpace(Space):
 
 
 class GeographicSpace(Space):
+
+    # Build a 1-skeleton based on the distance from each person.
+
+    # Potential algorithms
+
+    # greedy maximal-diametric reduction
+    #   - find the longest edge in a complete graph, name e.
+    #   - add the closest edge to a vertex in e to solution.
+    #   - repeat.
+
+    # simulated annealing esque algo
+    #   - choose a random solution. compute result
+    #   - choose a random subset and choose a new random solution.
+    #       - if the total solution is cheaper, take it as new solution. otherwise discard.
+
+    #
+
     @staticmethod
     def pairs(agents):
         """ Take list of agents, return list of pairs of agents """
@@ -114,29 +142,29 @@ class Scheduler(BaseScheduler):
 class OpinionatedAgent(Agent):
     """ Each agent should have an embedding in opinion space and in geographic space """
 
-    def __init__(self, unique_id, model):
-        self.opinion_history = np.zeros(NUM_STEPS)
+    def __init__(self, unique_id, model, momentum_gain=0.1):
+        self.opinion_history = [] #np.zeros(NUM_STEPS)
         self.opinion = random.random()  # 1d space for now # TODO: make n-dimensional
         self.location = random.random() # 1d space for now
         self.momentum = 0
+        self.momentum_gain = momentum_gain
         self.steps = 0
         super().__init__(unique_id, model)
 
     def update_opinion(self, diff):
         # Store current history
-        self.opinion_history[self.steps] = self.opinion
-        self.steps += 1
+        self.opinion_history.append(self.opinion)
 
         # Update history
-        self.momentum = diff + MOMENTUM_GAIN * self.momentum
-        logger.debug(f"Agent: {self.unique_id}, opinion: {self.opinion}, newdiff: {diff}, diff: {self.momentum}")
+        self.momentum = diff + self.momentum_gain * self.momentum
+        logger.debug(f"OpinAgent: {self.unique_id}, opinion: {self.opinion}, newdiff: {diff}, diff: {self.momentum}")
         self.opinion += self.momentum
 
     def update_location(self, diff):
         self.location += diff
 
     def __repr__(self):
-        return f"<Agent(id={self.unique_id}, op={self.opinion}, loc={self.location})>"
+        return f"<OpinAgent(id={self.unique_id}, op={self.opinion}, loc={self.location})>"
 
 
 class OpinionModel(Model):
@@ -161,14 +189,17 @@ class OpinionModel(Model):
 
 class Visualize():
     @staticmethod
-    def line_plot(agents, filename="results/agents.html"):
+    def line_plot(agents, notebook=1, filename="results/agents.html"):
+        if notebook:
+            output_notebook()
+        else:
+            output_file(filename)
 
-        output_file(filename)
 
         p = figure(plot_width=800, plot_height=250)
 
         for agent, color in zip(agents, cycle(Spectral11)):
-            p.line(x=np.arange(NUM_STEPS),
+            p.line(x=np.arange(len(agent.opinion_history)),
                    y=agent.opinion_history,
                    color=color)
 
