@@ -89,10 +89,14 @@ class Activation():
     """ This class will be overwritten by various activation functions """
         # TODO: information about the pairs will be used to choose which activation
 
+    def __init__(self, learning_rate=0.1):
+        self.learning_rate = learning_rate
+
     def body(self, first, second):
-        rate = 0.1
+        
+
         center = (first + second) / 2
-        direction = (center - first) * rate
+        direction = (center - first) * self.learning_rate
         return direction
 
     def __call__(self, first, second):
